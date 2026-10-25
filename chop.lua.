@@ -1,0 +1,168 @@
+-- Инициализация библиотеки Orion (совместима с Xeno)
+local OrionLib = loadstring(game:HttpGet(('https://githubusercontent.com')))()
+
+-- Создание окна чита
+local Window = OrionLib:MakeWindow({
+    Name = "Chop a Forest | Xeno & PC Edition", 
+    HidePremium = false, 
+    SaveConfig = true, 
+    ConfigFolder = "ChopForestXeno"
+})
+
+-- Глобальные настройки управления
+_G.AutoTrees = false
+_G.AutoGems = false
+_G.AutoCandy = false
+_G.AutoNPC = false
+_G.TweenSpeed = 50
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Кроссплатформенная функция плавной левитации/телепорта
+local function teleportTo(targetCFrame)
+    local character = LocalPlayer.Character
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    if rootPart then
+        local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+        local duration = distance / _G.TweenSpeed
+        
+        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+        tween:Play()
+        tween.Completed:Wait()
+    end
+end
+
+-- Оптимизированный кликер (Поддерживает ПК-клики и Xeno Tool-активацию)
+local function hitTarget()
+    -- Способ 1: Прямая активация инструмента в руках (самый надежный способ для Xeno)
+    local character = LocalPlayer.Character
+    local tool = character and character:FindFirstChildOfClass("Tool")
+    if tool then
+        tool:Activate()
+    end
+    
+    -- Способ 2: Симуляция клика мыши (для ПК-версий эксплойтов)
+    if mouse1click then
+        mouse1click()
+    else
+        -- Запасной способ для мобильных инжекторов
+        local virtualUser = game:GetService("VirtualUser")
+        virtualUser:CaptureController()
+        virtualUser:ClickButton1(Vector2.new(0, 0))
+    end
+end
+
+-- ================= ВКЛАДКИ ИНТЕРФЕЙСА =================
+
+local MainTab = Window:MakeTab({
+    Name = "Main Farm",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+MainTab:AddToggle({
+    Name = "Auto Farm Trees",
+    Default = false,
+    Callback = function(Value) _G.AutoTrees = Value end    
+})
+
+MainTab:AddToggle({
+    Name = "Auto Farm Gems",
+    Default = false,
+    Callback = function(Value) _G.AutoGems = Value end    
+})
+
+MainTab:AddToggle({
+    Name = "Auto Farm Candy Corn",
+    Default = false,
+    Callback = function(Value) _G.AutoCandy = Value end    
+})
+
+MainTab:AddToggle({
+    Name = "Auto Kill NPCs",
+    Default = false,
+    Callback = function(Value) _G.AutoNPC = Value end    
+})
+
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+SettingsTab:AddSlider({
+    Name = "Fly Speed",
+    Min = 20,
+    Max = 200,
+    Default = 60,
+    Color = Color3.fromRGB(0, 255, 150),
+    Increment = 5,
+    ValueName = "studs/s",
+    Callback = function(Value) _G.TweenSpeed = Value end    
+})
+
+OrionLib:Init()
+
+-- ================= ЛОГИКА ФАРМА (ПОТОК) =================
+
+task.spawn(function()
+    while task.wait(0.2) do
+        local character = LocalPlayer.Character
+        if not character or not character:FindFirstChild("Humanoid") then continue end
+        
+        -- Сбор предметов (Candy Corn / Gems)
+        if _G.AutoGems or _G.AutoCandy then
+            for _, item in ipairs(workspace:GetChildren()) do
+                if (_G.AutoCandy and item.Name == "CandyCorn") or (_G.AutoGems and item.Name == "Gem") then
+                    local part = item:FindFirstChildWhichIsA("BasePart")
+                    if part then
+                        teleportTo(part.CFrame)
+                        task.wait(0.1)
+                        if not (_G.AutoGems or _G.AutoCandy) then break end
+                    end
+                end
+            end
+        end
+        
+        -- Фарм деревьев
+        if _G.AutoTrees then
+            for _, tree in ipairs(workspace:GetChildren()) do
+                if tree.Name == "Tree" and tree:FindFirstChild("Trunk") then
+                    local health = tree:FindFirstChild("Health")
+                    if health and health.Value <= 0 then continue end
+                    
+                    -- Летим к дереву
+                    teleportTo(tree.Trunk.CFrame * CFrame.new(0, 0, 3))
+                    
+                    -- Бьем, пока дерево не сломается
+                    while _G.AutoTrees and (not health or health.Value > 0) and tree:FindFirstChild("Trunk") do
+                        hitTarget()
+                        task.wait(0.15)
+                    end
+                end
+            end
+        end
+
+        -- Убийство всех NPC на карте
+        if _G.AutoNPC then
+            for _, npc in ipairs(workspace:GetChildren()) do
+                if npc:FindFirstChild("Humanoid") and npc:FindFirstChild("HumanoidRootPart") and not Players:GetPlayerFromCharacter(npc) then
+                    local humanoid = npc.Humanoid
+                    local root = npc.HumanoidRootPart
+                    
+                    if humanoid.Health > 0 then
+                        -- Безопасная позиция: зависаем ровно НАД головой NPC, чтобы он не мог попасть по нам
+                        while _G.AutoNPC and humanoid.Health > 0 and root do
+                            teleportTo(root.CFrame * CFrame.new(0, 5.5, 0))
+                            hitTarget()
+                            task.wait(0.1)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
