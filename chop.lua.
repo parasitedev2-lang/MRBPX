@@ -1,33 +1,142 @@
--- Инициализация библиотеки Orion (совместима с Xeno)
-local OrionLib = loadstring(game:HttpGet(('https://githubusercontent.com')))()
+-- Очистка старого интерфейса перед перезапуском
+local uiName = "ChopForestNativeUI"
+if game:GetService("CoreGui"):FindFirstChild(uiName) then game:GetService("CoreGui")[uiName]:Destroy() end
+local LocalPlayer = game:GetService("Players").LocalPlayer
+if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild(uiName) then
+    LocalPlayer.PlayerGui[uiName]:Destroy()
+end
 
--- Создание окна чита
-local Window = OrionLib:MakeWindow({
-    Name = "Chop a Forest | Xeno & PC Edition", 
-    HidePremium = false, 
-    SaveConfig = true, 
-    ConfigFolder = "ChopForestXeno"
-})
-
--- Глобальные настройки управления
+-- Настройки по умолчанию
 _G.AutoTrees = false
 _G.AutoGems = false
 _G.AutoCandy = false
 _G.AutoNPC = false
 _G.TweenSpeed = 50
 
-local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
+local Players = game:GetService("Players")
 
--- Кроссплатформенная функция плавной левитации/телепорта
+-- Создание интерфейса
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = uiName
+ScreenGui.ResetOnSpawn = false
+
+-- Автоматический выбор места для вставки GUI (Обход защиты игры)
+local success, err = pcall(function()
+    ScreenGui.Parent = game:GetService("CoreGui")
+end)
+if not success then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- Главное окно
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 250, 0, 320)
+MainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+-- Заголовок меню
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+Title.Text = "Chop a Forest Hub (Xeno/PC)"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 16
+Title.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent = Title
+
+-- Конструктор кнопок
+local function createToggle(name, position, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 210, 0, 35)
+    button.Position = position
+    button.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+    button.Text = name .. " [OFF]"
+    button.TextColor3 = Color3.fromRGB(200, 200, 200)
+    button.Font = Enum.Font.SourceSans
+    button.TextSize = 15
+    button.Parent = MainFrame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = button
+    
+    local enabled = false
+    button.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        if enabled then
+            button.BackgroundColor3 = Color3.fromRGB(0, 160, 80)
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            button.Text = name .. " [ON]"
+        else
+            button.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+            button.TextColor3 = Color3.fromRGB(200, 200, 200)
+            button.Text = name .. " [OFF]"
+        end
+        callback(enabled)
+    end)
+end
+
+createToggle("Auto Farm Trees", UDim2.new(0, 20, 0, 60), function(val) _G.AutoTrees = val end)
+createToggle("Auto Farm Gems", UDim2.new(0, 20, 0, 105), function(val) _G.AutoGems = val end)
+createToggle("Auto Farm Candy", UDim2.new(0, 20, 0, 150), function(val) _G.AutoCandy = val end)
+createToggle("Auto Kill NPCs", UDim2.new(0, 20, 0, 195), function(val) _G.AutoNPC = val end)
+
+-- Переключатель скорости
+local SpeedBtn = Instance.new("TextButton")
+SpeedBtn.Size = UDim2.new(0, 210, 0, 35)
+SpeedBtn.Position = UDim2.new(0, 20, 0, 250)
+SpeedBtn.BackgroundColor3 = Color3.fromRGB(75, 55, 110)
+SpeedBtn.Text = "Speed: 50 (Normal)"
+SpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedBtn.Font = Enum.Font.SourceSans
+SpeedBtn.TextSize = 15
+SpeedBtn.Parent = MainFrame
+
+local SpeedCorner = Instance.new("UICorner")
+SpeedCorner.CornerRadius = UDim.new(0, 6)
+SpeedCorner.Parent = SpeedBtn
+
+SpeedBtn.MouseButton1Click:Connect(function()
+    if _G.TweenSpeed == 50 then
+        _G.TweenSpeed = 90
+        SpeedBtn.Text = "Speed: 90 (Fast)"
+    elseif _G.TweenSpeed == 90 then
+        _G.TweenSpeed = 140
+        SpeedBtn.Text = "Speed: 140 (Max)"
+    else
+        _G.TweenSpeed = 50
+        SpeedBtn.Text = "Speed: 50 (Normal)"
+    end
+end)
+
+-- Уведомление в чат о том, что чит успешно запустился
+game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
+    Text = "[Chop a Forest Hub]: Скрипт успешно активирован! Ищите меню на экране.";
+    Color = Color3.fromRGB(0, 255, 100);
+    Font = Enum.Font.SourceSansBold;
+})
+
+-- Логика перемещения и ударов
 local function teleportTo(targetCFrame)
     local character = LocalPlayer.Character
     local rootPart = character and character:FindFirstChild("HumanoidRootPart")
     if rootPart then
         local distance = (rootPart.Position - targetCFrame.Position).Magnitude
         local duration = distance / _G.TweenSpeed
-        
         local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
         local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
         tween:Play()
@@ -35,128 +144,56 @@ local function teleportTo(targetCFrame)
     end
 end
 
--- Оптимизированный кликер (Поддерживает ПК-клики и Xeno Tool-активацию)
 local function hitTarget()
-    -- Способ 1: Прямая активация инструмента в руках (самый надежный способ для Xeno)
     local character = LocalPlayer.Character
     local tool = character and character:FindFirstChildOfClass("Tool")
-    if tool then
-        tool:Activate()
-    end
-    
-    -- Способ 2: Симуляция клика мыши (для ПК-версий эксплойтов)
+    if tool then tool:Activate() end
     if mouse1click then
         mouse1click()
     else
-        -- Запасной способ для мобильных инжекторов
         local virtualUser = game:GetService("VirtualUser")
         virtualUser:CaptureController()
         virtualUser:ClickButton1(Vector2.new(0, 0))
     end
 end
 
--- ================= ВКЛАДКИ ИНТЕРФЕЙСА =================
-
-local MainTab = Window:MakeTab({
-    Name = "Main Farm",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-MainTab:AddToggle({
-    Name = "Auto Farm Trees",
-    Default = false,
-    Callback = function(Value) _G.AutoTrees = Value end    
-})
-
-MainTab:AddToggle({
-    Name = "Auto Farm Gems",
-    Default = false,
-    Callback = function(Value) _G.AutoGems = Value end    
-})
-
-MainTab:AddToggle({
-    Name = "Auto Farm Candy Corn",
-    Default = false,
-    Callback = function(Value) _G.AutoCandy = Value end    
-})
-
-MainTab:AddToggle({
-    Name = "Auto Kill NPCs",
-    Default = false,
-    Callback = function(Value) _G.AutoNPC = Value end    
-})
-
-local SettingsTab = Window:MakeTab({
-    Name = "Settings",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-SettingsTab:AddSlider({
-    Name = "Fly Speed",
-    Min = 20,
-    Max = 200,
-    Default = 60,
-    Color = Color3.fromRGB(0, 255, 150),
-    Increment = 5,
-    ValueName = "studs/s",
-    Callback = function(Value) _G.TweenSpeed = Value end    
-})
-
-OrionLib:Init()
-
--- ================= ЛОГИКА ФАРМА (ПОТОК) =================
-
+-- Фоновый рабочий цикл
 task.spawn(function()
-    while task.wait(0.2) do
+    while task.wait(0.3) do
         local character = LocalPlayer.Character
         if not character or not character:FindFirstChild("Humanoid") then continue end
         
-        -- Сбор предметов (Candy Corn / Gems)
         if _G.AutoGems or _G.AutoCandy then
             for _, item in ipairs(workspace:GetChildren()) do
                 if (_G.AutoCandy and item.Name == "CandyCorn") or (_G.AutoGems and item.Name == "Gem") then
                     local part = item:FindFirstChildWhichIsA("BasePart")
-                    if part then
-                        teleportTo(part.CFrame)
-                        task.wait(0.1)
-                        if not (_G.AutoGems or _G.AutoCandy) then break end
-                    end
+                    if part then teleportTo(part.CFrame) task.wait(0.1) end
                 end
             end
         end
         
-        -- Фарм деревьев
         if _G.AutoTrees then
             for _, tree in ipairs(workspace:GetChildren()) do
                 if tree.Name == "Tree" and tree:FindFirstChild("Trunk") then
                     local health = tree:FindFirstChild("Health")
                     if health and health.Value <= 0 then continue end
-                    
-                    -- Летим к дереву
                     teleportTo(tree.Trunk.CFrame * CFrame.new(0, 0, 3))
-                    
-                    -- Бьем, пока дерево не сломается
                     while _G.AutoTrees and (not health or health.Value > 0) and tree:FindFirstChild("Trunk") do
                         hitTarget()
-                        task.wait(0.15)
+                        task.wait(0.2)
                     end
                 end
             end
         end
 
-        -- Убийство всех NPC на карте
         if _G.AutoNPC then
             for _, npc in ipairs(workspace:GetChildren()) do
                 if npc:FindFirstChild("Humanoid") and npc:FindFirstChild("HumanoidRootPart") and not Players:GetPlayerFromCharacter(npc) then
                     local humanoid = npc.Humanoid
                     local root = npc.HumanoidRootPart
-                    
                     if humanoid.Health > 0 then
-                        -- Безопасная позиция: зависаем ровно НАД головой NPC, чтобы он не мог попасть по нам
                         while _G.AutoNPC and humanoid.Health > 0 and root do
-                            teleportTo(root.CFrame * CFrame.new(0, 5.5, 0))
+                            teleportTo(root.CFrame * CFrame.new(0, 6, 0))
                             hitTarget()
                             task.wait(0.1)
                         end
